@@ -1,11 +1,15 @@
 services:
-  mongo:
-    image: mongo:7
+  postgres:
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: filmes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d filmes"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -15,16 +19,21 @@ services:
     build: ./backend
     restart: unless-stopped
     environment:
-      MONGODB_URI: mongodb://mongo:27017/filmes
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/filmes
       DATA_DIR: /data
       NODE_ENV: production
+      EMBEDDINGS_BASE_URL: http://192.168.15.10:1234
+      EMBEDDINGS_MODEL: text-embedding-nomic-embed-text-v2-moe
+      EMBEDDINGS_DIM: "768"
     volumes:
       - ./database_filmes:/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
-    expose:
-      - "3001"
+    ports:
+      - "3001:3001"
 
   web:
     build:
@@ -38,4 +47,4 @@ services:
       - api
 
 volumes:
-  mongo_data:
+  postgres_data:

@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import moviesRouter from './routes/movies.js';
+import { getPool } from './db/postgres.js';
 
 const PORT = Number(process.env.PORT) || 3001;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/filmes';
 
 const app = express();
 app.use(cors());
@@ -22,11 +21,23 @@ app.use((err, _req, res, _next) => {
 });
 
 async function main() {
-  await mongoose.connect(MONGODB_URI);
-  console.log('MongoDB conectado');
+  const pool = getPool();
+  await pool.query('select 1 as ok');
+  console.log('Postgres conectado');
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`API em http://0.0.0.0:${PORT}`);
   });
+
+  const shutdown = async () => {
+    try {
+      await pool.end();
+    } catch (e) {
+      console.error('Erro ao fechar pool', e);
+    }
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 main().catch((e) => {
