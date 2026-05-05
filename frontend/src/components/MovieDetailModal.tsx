@@ -11,7 +11,7 @@ import {
   Text,
 } from '@mantine/core';
 import { useEffect, useState, type ReactNode } from 'react';
-import { fetchMovieById, type MovieDetail } from '../api';
+import { fetchMovieById, type MovieListItem } from '../api';
 import {
   formatReleaseDate,
   formatUsd,
@@ -40,7 +40,7 @@ function DetailBlock({ label, children }: { label: string; children: ReactNode }
 
 export function MovieDetailModal({ tmdbId, onClose }: MovieDetailModalProps) {
   const opened = tmdbId != null;
-  const [data, setData] = useState<MovieDetail | null>(null);
+  const [data, setData] = useState<MovieListItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,14 +1,15 @@
-import { Autocomplete, Group, Loader, Stack, Text, Title } from '@mantine/core';
+import { Autocomplete, Group, Loader, SegmentedControl, Stack, Text, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchSearch, fetchSuggest, type MovieListItem, type SuggestItem } from '../api';
+import { fetchSearch, fetchSuggest, type MovieListItem, type SearchMode, type SuggestItem } from '../api';
 import { MovieCard } from '../components/MovieCard';
 import { MovieDetailModal } from '../components/MovieDetailModal';
 
 export default function SearchPage() {
   const [value, setValue] = useState('');
   const [debounced] = useDebouncedValue(value, 220);
+  const [mode, setMode] = useState<SearchMode>('semantic');
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
   const [map, setMap] = useState<Record<string, SuggestItem>>({});
@@ -27,12 +28,13 @@ export default function SearchPage() {
       return;
     }
     setLoading(true);
-    fetchSuggest(q)
+    fetchSuggest(q, { mode: mode === 'semantic' ? 'semantic' : 'text', limit: 15 })
       .then((items) => {
         if (cancelled) return;
         const m: Record<string, SuggestItem> = {};
         const labels = items.map((it) => {
-          const label = `${it.title}${it.originalTitle && it.originalTitle !== it.title ? ` (${it.originalTitle})` : ''}`;
+          const hasOriginal = Boolean(it.originalTitle && it.originalTitle !== it.title);
+          const label = hasOriginal ? `${it.title} (${it.originalTitle})` : it.title;
           m[label] = it;
           return label;
         });
@@ -51,7 +53,7 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [debounced]);
+  }, [debounced, mode]);
 
   const runFullSearch = async (q: string) => {
     const query = q.trim();
@@ -62,7 +64,7 @@ export default function SearchPage() {
     }
     setSearching(true);
     try {
-      const data = await fetchSearch({ q: query, page: 1, pageSize: 24 });
+      const data = await fetchSearch({ q: query, page: 1, pageSize: 24, mode });
       setResults(data.items);
       setTotal(data.total);
     } catch {
@@ -83,10 +85,19 @@ export default function SearchPage() {
       <div>
         <Title order={2}>Busca</Title>
         <Text c="dimmed" size="sm" mt={4}>
-          Digite título, gênero, elenco ou palavras do enredo — sugestões aparecem enquanto você
-          digita.
+          Use a busca semântica para descrever o enredo com suas palavras, ou mude para busca por
+          texto para termos exatos.
         </Text>
       </div>
+
+      <SegmentedControl
+        value={mode}
+        onChange={(v) => setMode(v as SearchMode)}
+        data={[
+          { value: 'semantic', label: 'Semântica' },
+          { value: 'text', label: 'Texto' },
+        ]}
+      />
 
       <Autocomplete
         label="Encontrar filme"
@@ -117,7 +128,7 @@ export default function SearchPage() {
       {!searching && results.length > 0 && (
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            {total} resultado(s) para &quot;{value.trim()}&quot;
+            {total} resultado(s) para &quot;{value.trim()}&quot; ({mode === 'semantic' ? 'semântica' : 'texto'})
           </Text>
           {results.map((m) => (
             <MovieCard
